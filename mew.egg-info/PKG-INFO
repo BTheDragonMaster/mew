@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: mew
+Version: 0.0.1
+Summary: MEW: mRNA Expression Wizard
+Home-page: UNKNOWN
+Author: Barbara Terlouw
+Author-email: barbara.terlouw@wur.nl
+License: UNKNOWN
+Description: A package to train algorithms that predict mRNA expression level from sequence.
+Platform: UNKNOWN

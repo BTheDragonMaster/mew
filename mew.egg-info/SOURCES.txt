@@ -1,0 +1,10 @@
+setup.py
+mew/__init__.py
+mew.egg-info/PKG-INFO
+mew.egg-info/SOURCES.txt
+mew.egg-info/dependency_links.txt
+mew.egg-info/top_level.txt
+mew/featurisation/__init__.py
+mew/featurisation/viennarna/__init__.py
+mew/featurisation/viennarna/from_probability_matrix.py
+mew/machine_learning/__init__.py
