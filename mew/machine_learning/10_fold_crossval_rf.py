@@ -21,19 +21,6 @@ import pydotplus
 
 mRFP = 'MASSEDVIKEFMRFKVRMEGSVNGHEFEIEGEGEGRPYEGTQTAKLKVTKGGPLPFAWDILSPQFQYGSKAYVKHPADIPDYLKLSFPEGFKWERVMNFEDGGVVTVTQDSSLQDGEFIYKVKLRGTNFPSDGPVMQKKTMGWEASTERMYPEDGALKGEIKMRLKLKDGGHYDAEVKTTYMAKKPVQLPGAYKTDIKLDITSHNEDYTIVEQYERAEGRHSTGA*'
 
-
-
-def make_feature_vectors(data_points):
-    feature_vector = []
-    response_vector = []
-    
-    for data_point in data_points:
-        feature_vector.append(data_point.onehot_12)
-
-        response_vector.append(data_point.flow)
-
-    return feature_vector, response_vector
-
 class TrainingSet():
     def __init__(self, label):
 
