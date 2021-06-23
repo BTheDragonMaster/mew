@@ -97,11 +97,11 @@ def do_crossval_multi(args):
     argument_list = []
     for sequence_file in os.listdir(args.sequence_data_dir):
         if sequence_file[-4:] == '.txt':
-            arguments = [args, encoding, algorithm, sequence_file]
+            arguments = (args, encoding, algorithm, sequence_file)
             argument_list.append(arguments)
 
     pools = Pool(args.threads)
-    pools.map(do_crossval_single, argument_list)
+    pools.starmap(do_crossval_single, argument_list)
 
 if __name__ == "__main__":
     parser = make_parser()
