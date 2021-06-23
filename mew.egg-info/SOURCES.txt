@@ -8,6 +8,7 @@ mew.egg-info/dependency_links.txt
 mew.egg-info/top_level.txt
 mew/data/__init__.py
 mew/data/codon_tables.py
+mew/data/write_windows.py
 mew/featurisation/__init__.py
 mew/featurisation/feature_mapping.py
 mew/featurisation/one_hot.py
@@ -18,7 +19,10 @@ mew/machine_learning/crossval.py
 mew/machine_learning/data_point.py
 mew/machine_learning/datasets.py
 mew/machine_learning/train_RF.py
+mew/machine_learning/window_crossval.py
 mew/rna/__init__.py
 mew/rna/pairing_probabilities.py
 mew/visualisation/__init__.py
 mew/visualisation/plot.py
+mew/visualisation/plot_correlations.py
+mew/visualisation/plot_feature_importance_figures.py

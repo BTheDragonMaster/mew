@@ -3,9 +3,13 @@
 from mew.data.codon_tables import AA_TO_CODONS, CODON_TO_AA
 
 
+def do_onehot_encoding(sequence, type='one-hot-base', start_position=None, coding_length=678):
+    if start_position != None:
 
-def do_onehot_encoding(sequence, type='one-hot-base'):
-    sequence = CodingSequence(sequence)
+        sequence = get_coding_range(sequence, start_position, coding_length=coding_length)
+
+    else:
+        sequence = CodingSequence(sequence)
     feature_vector = sequence.get_feature_vector(type)
     return feature_vector
 
@@ -46,12 +50,30 @@ INDEX_TO_BASE = {0: 'A',
                  3: 'T'}
 
 
+def get_coding_range(sequence, start_position, coding_length=678):
+
+    coding_sequence = sequence
+
+    if len(sequence) > coding_length - start_position:
+        coding_sequence = coding_sequence[:coding_length - start_position]
+
+    if start_position < 0:
+        coding_sequence = coding_sequence[abs(start_position):]
+
+    frame = 0
+
+    if start_position >= 0:
+        frame = start_position % 3
+
+    return CodingSequence(coding_sequence, frame)
+
 
 class CodingSequence:
 
-    def __init__(self, sequence):
+    def __init__(self, sequence, frame=0):
         self.sequence = sequence
-        assert len(self.sequence) % 3 == 0
+
+        self.frame = frame
         
         self.codons = self.get_codons()
 
@@ -68,9 +90,11 @@ class CodingSequence:
     def get_codons(self):
         codons = []
 
-        for i in range(0, len(self.sequence), 3):
-            codon = self.sequence[i:i + 3]
-            codons.append(codon)
+        if self.sequence:
+
+            for i in range(self.frame, len(self.sequence), 3):
+                codon = self.sequence[i:i + 3]
+                codons.append(codon)
 
         return codons
 
@@ -78,7 +102,7 @@ class CodingSequence:
         vector = []
 
         for i, base in enumerate(self.sequence):
-            if i % 3 == 2:
+            if i % 3 == 2 - self.frame:
                 vector += BASE_TO_VECTOR[base]
 
         return vector

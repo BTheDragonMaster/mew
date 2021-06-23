@@ -220,7 +220,52 @@ def read_feature_importances(fi_file, encoding, base_to_importance = None):
 
                     base_to_importance[codon][codon_type].append(importance)
 
+                elif encoding == 'rna-bppm-onehot-third':
+                    encoding_type, base, base_type, importance = line.split('\t')
+
+                    base = int(base)
+                    importance = float(importance)
+
+                    if not base in base_to_importance:
+                        base_to_importance[base] = {}
+
+                    if encoding_type == 'bpp':
+                        if not 'bpp' in base_to_importance[base]:
+                            base_to_importance[base]['bpp'] = []
+
+                        base_to_importance[base]['bpp'].append(importance)
+
+                    elif encoding_type == 'onehot3':
+                        if not base_type in base_to_importance[base]:
+                            base_to_importance[base][base_type] = []
+
+                        base_to_importance[base][base_type].append(importance)
+
     return base_to_importance
+
+def read_correlations(correlations_file):
+    with open(correlations_file, 'r') as correlations:
+        pearson = correlations.readline().split(',')[1]
+        spearman = correlations.readline().split(',')[1]
+
+    return pearson, spearman
+
+def read_correlations_from_dir(window_dir):
+    window_to_correlations = {}
+    for directory in os.listdir(window_dir):
+        if directory[:7] == 'windows':
+            full_path = os.path.join(window_dir, directory)
+            coefficients_file = os.path.join(full_path, "correlation_coefficients.txt")
+            pearson, spearman = read_correlations(coefficients_file)
+            window = int(directory.split('_')[-1])
+            window_to_correlations[window] = {}
+            window_to_correlations[window]['pearson'] = float(pearson)
+            window_to_correlations[window]['spearman'] = float(spearman)
+
+    return window_to_correlations
+
+
+
 
 
 def read_feature_importances_from_dir(fi_dir, encoding):
@@ -229,7 +274,7 @@ def read_feature_importances_from_dir(fi_dir, encoding):
             fi_file = os.path.join(fi_dir, fi_name)
             base_to_importance = read_feature_importances(fi_file, encoding)
 
-    if encoding == 'one-hot-codon' or encoding == 'one-hot-base' or encoding == 'one-hot-third-base':
+    if encoding == 'one-hot-codon' or encoding == 'one-hot-base' or encoding == 'one-hot-third-base' or encoding == 'rna-bppm-onehot-third':
         for base, type_to_importance in base_to_importance.items():
             for base_type, importances in type_to_importance.items():
                 base_to_importance[base][base_type] = sum(importances) / float(len(importances))
@@ -239,11 +284,6 @@ def read_feature_importances_from_dir(fi_dir, encoding):
             base_to_importance[base] = sum(importances) / float(len(importances))
 
     return base_to_importance
-
-
-
-
-
 
 
 def parse_feature_importance_per_base(fi_dir):
@@ -442,6 +482,10 @@ class TranslationResults:
                 sequences.append(self.results[result].orf)
 
         return sequences
+
+    def get_medium_2_sequences(self):
+        sequences = []
+
 
     def get_high_sequences(self):
         sequences = []

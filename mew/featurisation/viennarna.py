@@ -2,6 +2,7 @@
 
 import RNA
 
+
 def get_rna_coordinate(rna_coordinate, five_utr):
     coordinate = rna_coordinate - len(five_utr) + 1
     if coordinate <= 0:
@@ -20,6 +21,7 @@ def from_bppm_base_totals(sequence, five_utr='', terminator=''):
     :return feature_mapping: dict of {index: base position, ->}, with index and base position int. Index corresponds to
                              index in the feature vector
     """
+
     bppm = BPPM(sequence, five_utr, terminator)
     feature_vector = bppm.make_row_feature_vector()
     return feature_vector

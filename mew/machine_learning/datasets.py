@@ -18,7 +18,7 @@ from mew.featurisation.feature_mapping import get_feature_mapping, get_feature_s
 from mew.visualisation.plot import plot_actual_vs_predicted, plot_feature_importances
 
 
-def build_dataset(sequence_file, flow_file, label, encoding, dataset_type, utr_file=None, bpps_file=None, length=None, utr_length=None, fold=10, algorithm="random_forest"):
+def build_dataset(sequence_file, flow_file, label, encoding, dataset_type, utr_file=None, bpps_file=None, length=None, utr_length=None, start_position=None, fold=10, algorithm="random_forest", alpha=1.0, coding_length=678):
     well_to_sequence = read_sequences(sequence_file)
     well_to_flow = read_flow(flow_file)
 
@@ -37,11 +37,11 @@ def build_dataset(sequence_file, flow_file, label, encoding, dataset_type, utr_f
     representative_sequence = well_to_sequence[list(well_to_sequence.keys())[0]]
 
     if dataset_type == 'crossval':
-        dataset = CrossvalSet(label, encoding, representative_sequence, five_utr=five_utr, terminator=terminator, fold=fold, algorithm=algorithm, length=length, utr_length=utr_length)
+        dataset = CrossvalSet(label, encoding, representative_sequence, five_utr=five_utr, terminator=terminator, fold=fold, algorithm=algorithm, length=length, utr_length=utr_length, alpha=alpha, start_position=start_position, coding_length=coding_length)
     elif dataset_type == 'training':
-        dataset = TrainingSet(label, encoding, five_utr=five_utr, terminator=terminator, representative_sequence=representative_sequence, length=length, utr_length=utr_length)
+        dataset = TrainingSet(label, encoding, five_utr=five_utr, terminator=terminator, representative_sequence=representative_sequence, length=length, utr_length=utr_length, start_position=start_position, coding_length=coding_length)
     elif dataset_type == 'test':
-        dataset = TestSet(label, encoding, five_utr=five_utr, terminator=terminator, representative_sequence=representative_sequence, length=length, utr_length=utr_length)
+        dataset = TestSet(label, encoding, five_utr=five_utr, terminator=terminator, representative_sequence=representative_sequence, length=length, utr_length=utr_length, start_position=start_position, coding_length=coding_length)
 
     for well, sequence in well_to_sequence.items():
         flow = well_to_flow[well]
@@ -67,7 +67,7 @@ def get_feature_vectors(data_points):
 
 class DataSet:
     def __init__(self, label, encoding, five_utr='', terminator='', representative_sequence=None, length=None, utr_length=None, data_points=None,
-                 feature_mapping=None):
+                 feature_mapping=None, start_position=None, coding_length=678):
         if not data_points:
             self.data_points = []
         else:
@@ -83,11 +83,12 @@ class DataSet:
 
         self.features = []
         self.responses = []
+        self.start_position = start_position
+        self.coding_length = coding_length
 
         if representative_sequence:
 
-            self.feature_mapping = get_feature_mapping(representative_sequence, self.encoding, five_utr, terminator, length=self.length, utr_length=self.utr_length)
-
+            self.feature_mapping = get_feature_mapping(representative_sequence, self.encoding, five_utr, terminator, length=self.length, utr_length=self.utr_length, start_position=self.start_position, coding_length=self.coding_length)
         else:
             if not feature_mapping:
                 self.feature_mapping = {}
@@ -103,17 +104,20 @@ class DataSet:
         self.features, self.responses = get_feature_vectors(self.data_points)
 
     def add_data_point(self, well, sequence, flow, bpps=None):
-        self.data_points.append(DataPoint(well, sequence, flow, self.encoding, bpps=bpps, five_utr=self.five_utr, terminator=self.terminator, length=self.length, utr_length=self.utr_length))
+        self.data_points.append(DataPoint(well, sequence, flow, self.encoding, bpps=bpps, five_utr=self.five_utr, terminator=self.terminator, length=self.length, utr_length=self.utr_length, start_position=self.start_position, coding_length=self.coding_length))
 
 
 class TestSet(DataSet):
     def __init__(self, label, encoding, five_utr='', terminator='', representative_sequence=None, length=None,
-                 utr_length=None, data_points=None, feature_mapping=None):
+                 utr_length=None, data_points=None, feature_mapping=None, start_position=None, coding_length=678):
         super().__init__(label, encoding, five_utr=five_utr, terminator=terminator,
                          representative_sequence=representative_sequence,
                          length=length,
                          utr_length=utr_length,
-                         data_points=data_points, feature_mapping=feature_mapping)
+                         data_points=data_points,
+                         feature_mapping=feature_mapping,
+                         start_position=start_position,
+                         coding_length=coding_length)
 
     def test_classifier(self, classifier):
         predicted_responses = classifier.predict(self.features)
@@ -127,16 +131,19 @@ class TestSet(DataSet):
 
 class TrainingSet(DataSet):
     def __init__(self, label, encoding, five_utr='', terminator='', representative_sequence=None, length=None,
-                 utr_length=None, data_points=None, feature_mapping=None):
+                 utr_length=None, data_points=None, feature_mapping=None, start_position=None, coding_length=678):
         super().__init__(label, encoding, five_utr=five_utr, terminator=terminator,
                          representative_sequence=representative_sequence,
                          length=length,
                          utr_length=utr_length,
-                         data_points=data_points, feature_mapping=feature_mapping)
+                         data_points=data_points,
+                         feature_mapping=feature_mapping,
+                         start_position=start_position,
+                         coding_length=coding_length)
 
         self.classifier = None
 
-    def train_random_forest(self, classifier_dir):
+    def train_random_forest(self, classifier_dir, save_classifier=True):
 
         self.classifier = RandomForestRegressor()
         self.classifier.fit(self.features, self.responses)
@@ -147,7 +154,8 @@ class TrainingSet(DataSet):
         if not os.path.exists(classifier_dir):
             os.mkdir(classifier_dir)
 
-        dump(self.classifier, os.path.join(classifier_dir, self.label + '_rf.classifier'))
+        if save_classifier:
+            dump(self.classifier, os.path.join(classifier_dir, self.label + '_rf.classifier'))
 
     def save_representative_tree(self, tree_dir):
         if not os.path.exists(tree_dir):
@@ -170,16 +178,31 @@ class TrainingSet(DataSet):
         os.remove(tree_output_file)
 
 
-    def train_lasso(self, classifier_dir):
-        pass
+    def train_lasso(self, classifier_dir, alpha, save_classifier=True):
+        self.classifier = Lasso(alpha=alpha, max_iter=10000)
+        self.classifier.fit(self.features, self.responses)
 
-    def train_linear_regression(self, classifier_dir):
-        pass
+        if not os.path.exists(classifier_dir):
+            os.mkdir(classifier_dir)
 
-    def train_svm(self, classifier_dir):
-        raise NotImplementedError
+        self.feature_importances = self.classifier.coef_
 
-    def train_neural_net(self, classifier_dir):
+        if save_classifier:
+            dump(self.classifier, os.path.join(classifier_dir, self.label + '_lasso.classifier'))
+
+    def train_linear_regression(self, classifier_dir, save_classifier=True):
+        self.classifier = LinearRegression()
+        self.classifier.fit(self.features, self.responses)
+
+        if not os.path.exists(classifier_dir):
+            os.mkdir(classifier_dir)
+
+        self.feature_importances = self.classifier.coef_
+
+        if save_classifier:
+            dump(self.classifier, os.path.join(classifier_dir, self.label + '_lr.classifier'))
+
+    def train_neural_net(self, classifier_dir, save_classifier=True):
         raise NotImplementedError
 
     def write_feature_importances(self, feature_importances_dir):
@@ -200,12 +223,32 @@ class TrainingSet(DataSet):
                 elif self.encoding == 'rna-bppm':
                     base_1, base_2 = mapping
                     feature_importances.write(f'{base_1}\t{base_2}\t{importance:.3f}\n')
+                elif self.encoding == 'rna-bppm-onehot-third':
+                    encoding_type = mapping[0]
+                    if encoding_type == 'bpp':
+                        position = mapping[1]
+                        identity = 'N/A'
+
+                    elif encoding_type == 'onehot3':
+                        position = mapping[1]
+                        identity = mapping[2]
+
+                    feature_importances.write(f'{encoding_type}\t{position}\t{identity}\t{importance:.3f}\n')
 
 
 class CrossvalSet(DataSet):
 
-    def __init__(self, label, encoding, representative_sequence, five_utr='', terminator='', fold=10, algorithm="random_forest", length=None, utr_length=None):
-        super().__init__(label, encoding, five_utr=five_utr, terminator=terminator, representative_sequence=representative_sequence, length=length, utr_length=utr_length)
+    def __init__(self, label, encoding, representative_sequence, five_utr='', terminator='', fold=10,
+                 algorithm="random_forest", length=None, utr_length=None, alpha=1.0, start_position=None,
+                 coding_length=678):
+        super().__init__(label, encoding,
+                         five_utr=five_utr,
+                         terminator=terminator,
+                         representative_sequence=representative_sequence,
+                         length=length,
+                         utr_length=utr_length,
+                         start_position=start_position,
+                         coding_length=coding_length)
 
         self.fold = fold
 
@@ -217,6 +260,7 @@ class CrossvalSet(DataSet):
 
         self.true_flow = []
         self.predicted_flow = []
+        self.alpha = alpha
 
     def initialise_groups(self):
         for i in range(self.fold):
@@ -238,22 +282,16 @@ class CrossvalSet(DataSet):
                 for data_point in self.groups[group]:
 
                     test_set.data_points.append(data_point)
-
-
-
             else:
-
                 for data_point in self.groups[group]:
                     training_set.data_points.append(data_point)
-
-
 
         test_set.set_feature_vectors()
         training_set.set_feature_vectors()
 
         return test_set, training_set
 
-    def do_crossval(self, out_dir):
+    def do_crossval(self, out_dir, save_classifiers=True):
 
         for group in range(self.fold):
             test_set, training_set = self.get_train_and_test_sets(group)
@@ -261,20 +299,16 @@ class CrossvalSet(DataSet):
             classifier_dir = os.path.join(os.getcwd(), os.path.join(out_dir, 'crossval_classifiers'))
 
             if self.algorithm == 'random_forest':
-                training_set.train_random_forest(classifier_dir)
-                training_set.save_representative_tree(os.path.join(out_dir, 'crossval_trees'))
+                training_set.train_random_forest(classifier_dir, save_classifier=save_classifiers)
+                if save_classifiers:
+                    training_set.save_representative_tree(os.path.join(out_dir, 'crossval_trees'))
 
             elif self.algorithm == 'lasso':
-                training_set.train_lasso(classifier_dir)
-
-            elif self.algorithm == 'linear_regression':
-                training_set.train_linear_regression(classifier_dir)
+                training_set.train_lasso(classifier_dir, self.alpha, save_classifier=save_classifiers)
 
             elif self.algorithm == 'neural_net':
-                training_set.train_neural_net(classifier_dir)
+                training_set.train_neural_net(classifier_dir, save_classifier=save_classifiers)
 
-            elif self.algorithm == 'svm':
-                training_set.train_svm(classifier_dir)
 
             training_set.write_feature_importances(os.path.join(out_dir, 'feature_importances'))
 
@@ -316,6 +350,12 @@ class CrossvalSet(DataSet):
         fi_dir = os.path.join(out_dir, 'feature_importances')
         plot_dir = os.path.join(out_dir, 'plots')
         plot_feature_importances(fi_dir, self.encoding, plot_dir)
+
+    def write_correlation_coefficients(self, out_dir):
+        correlation_dir = os.path.join(out_dir, 'correlation_coefficients.txt')
+        with open(correlation_dir, 'w') as correlations:
+            correlations.write(f'pearson,{self.pearson}\n')
+            correlations.write(f'spearman,{self.spearman}\n')
 
 
 
