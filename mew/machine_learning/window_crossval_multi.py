@@ -76,18 +76,22 @@ def do_crossval_single(args, encoding, algorithm, sequence_file):
     dataset = build_dataset(full_path, args.expression_data, f'{args.name}_window_{window_number}', encoding,
                             'crossval', bpps_file=base_pairing_file, fold=args.fold, algorithm=algorithm,
                             alpha=args.alpha, start_position=window_number, coding_length=args.coding_length)
-    dataset.initialise_groups()
-    dataset.populate_groups()
 
-    output_folder = os.path.join(args.output_folder, f'{args.name}_window_{window_number}')
-    if not os.path.exists(output_folder):
-        os.mkdir(output_folder)
+    representative_feature_vector = dataset.data_points[0].feature_vector
+    if len(representative_feature_vector) != 0:
 
-    dataset.do_crossval(output_folder, save_classifiers=False)
-    dataset.plot_actual_vs_predicted(output_folder)
-    dataset.write_actual_vs_predicted(output_folder)
-    dataset.plot_feature_importances(output_folder)
-    dataset.write_correlation_coefficients(output_folder)
+        dataset.initialise_groups()
+        dataset.populate_groups()
+
+        output_folder = os.path.join(args.output_folder, f'{args.name}_window_{window_number}')
+        if not os.path.exists(output_folder):
+            os.mkdir(output_folder)
+
+        dataset.do_crossval(output_folder, save_classifiers=False)
+        dataset.plot_actual_vs_predicted(output_folder)
+        dataset.write_actual_vs_predicted(output_folder)
+        dataset.plot_feature_importances(output_folder)
+        dataset.write_correlation_coefficients(output_folder)
 
 
 
