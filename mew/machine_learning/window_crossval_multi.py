@@ -96,6 +96,8 @@ def do_crossval_single(args, encoding, algorithm, sequence_file):
 
 
 def do_crossval_multi(args):
+    if not os.path.exists(args.output_folder):
+        os.mkdir(args.output_folder)
     encoding = get_featurisation(args)
     algorithm = get_algorithm(args)
     argument_list = []

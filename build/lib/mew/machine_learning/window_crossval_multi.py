@@ -2,6 +2,7 @@
 
 import argparse
 import os
+from multiprocessing import Pool
 
 from mew.machine_learning.datasets import *
 
@@ -17,6 +18,7 @@ def make_parser():
     parser.add_argument('-b', '--base_pairing_data', default=None, type=str, help="Comma-separated file with sequence ID in the leftmost column and base pairing probabilities in the remaining columns. If given, base pairing probabilities don't have to be calculated from scratch.")
     parser.add_argument('-alpha', '--alpha', default=1.0, type=float, help="Alpha value for LASSO.")
     parser.add_argument('-cd', '--coding_length', default=678, type=int, help="Length of coding sequence. Default value represents length of mRFP")
+    parser.add_argument('-t', '--threads', default=1, type=int, help="Number of threads.")
 
     ml_methods = parser.add_mutually_exclusive_group(required=True)
     ml_methods.add_argument('-la', '--lasso', action='store_true', help="Do cross-validation for LASSO regressor.")
@@ -67,34 +69,45 @@ def get_algorithm(args):
     return algorithm
 
 
-def do_crossval(args):
-    if not os.path.exists(args.output_folder):
-        os.mkdir(args.output_folder)
+def do_crossval_single(args, encoding, algorithm, sequence_file):
+    window_number = int(sequence_file.split('.')[0].split('_')[1])
+    full_path = os.path.join(args.sequence_data_dir, sequence_file)
+    base_pairing_file = os.path.join(args.base_pairing_data, sequence_file)
+    dataset = build_dataset(full_path, args.expression_data, f'{args.name}_window_{window_number}', encoding,
+                            'crossval', bpps_file=base_pairing_file, fold=args.fold, algorithm=algorithm,
+                            alpha=args.alpha, start_position=window_number, coding_length=args.coding_length)
+
+    representative_feature_vector = dataset.data_points[0].feature_vector
+    if len(representative_feature_vector) != 0:
+
+        dataset.initialise_groups()
+        dataset.populate_groups()
+
+        output_folder = os.path.join(args.output_folder, f'{args.name}_window_{window_number}')
+        if not os.path.exists(output_folder):
+            os.mkdir(output_folder)
+
+        dataset.do_crossval(output_folder, save_classifiers=False)
+        dataset.plot_actual_vs_predicted(output_folder)
+        dataset.write_actual_vs_predicted(output_folder)
+        dataset.plot_feature_importances(output_folder)
+        dataset.write_correlation_coefficients(output_folder)
+
+
+
+def do_crossval_multi(args):
     encoding = get_featurisation(args)
     algorithm = get_algorithm(args)
+    argument_list = []
     for sequence_file in os.listdir(args.sequence_data_dir):
         if sequence_file[-4:] == '.txt':
-            window_number = int(sequence_file.split('.')[0].split('_')[1])
-            full_path = os.path.join(args.sequence_data_dir, sequence_file)
-            base_pairing_file = os.path.join(args.base_pairing_data, sequence_file)
-            dataset = build_dataset(full_path, args.expression_data, f'{args.name}_window_{window_number}', encoding, 'crossval', bpps_file=base_pairing_file, fold=args.fold, algorithm=algorithm, alpha=args.alpha, start_position=window_number, coding_length=args.coding_length)
+            arguments = (args, encoding, algorithm, sequence_file)
+            argument_list.append(arguments)
 
-            representative_feature_vector = dataset.data_points[0].feature_vector
-            if len(representative_feature_vector) != 0:
-                dataset.initialise_groups()
-                dataset.populate_groups()
-
-                output_folder = os.path.join(args.output_folder, f'{args.name}_window_{window_number}')
-                if not os.path.exists(output_folder):
-                    os.mkdir(output_folder)
-
-                dataset.do_crossval(output_folder, save_classifiers=False)
-                dataset.plot_actual_vs_predicted(output_folder)
-                dataset.write_actual_vs_predicted(output_folder)
-                dataset.plot_feature_importances(output_folder)
-                dataset.write_correlation_coefficients(output_folder)
+    pools = Pool(args.threads)
+    pools.starmap(do_crossval_single, argument_list)
 
 if __name__ == "__main__":
     parser = make_parser()
     args = parser.parse_args()
-    do_crossval(args)
+    do_crossval_multi(args)

@@ -20,6 +20,7 @@ mew/machine_learning/data_point.py
 mew/machine_learning/datasets.py
 mew/machine_learning/train_RF.py
 mew/machine_learning/window_crossval.py
+mew/machine_learning/window_crossval_multi.py
 mew/rna/__init__.py
 mew/rna/pairing_probabilities.py
 mew/visualisation/__init__.py
