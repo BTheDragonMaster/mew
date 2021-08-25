@@ -2,13 +2,148 @@
 
 import matplotlib
 matplotlib.use('TkAgg')
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, patches
 
 from scipy.stats import pearsonr, spearmanr
 import os
 from sys import argv
 
 from mew.parsers import read_feature_importances_from_dir, read_correlations_from_dir
+
+
+def plot_indicator_bar(smallest_x, max_x, ax):
+    fragments = ["ATGGGCCCAAGTTCACTTAAAAAGGAGATCAACAATGAAAGCAATTTTCGTACTGAAACATCTTAATCATGC", "AGGGGAGGGT", "TTCTA",
+                 "ATGGCVAGYAGYGAAGAYGTBATYAARGAATTYATGCGYTTYAARGTBCGYATGGAAGGYAGYGTBAAYGGYCAYGAATTYGAAATYGAAGGYGAAGGYGAAGGYCGYCCGTAYGAAGGYACGCARACGGCVAARCTGAARGTBACGAARGGYGGYCCGCTGCCGTTCGCCTGGGAYATYCTGAGYCCGCARTTYCARTAYGGYAGYAARGCVTAYGTBAARCAYCCGGCVGAYATYCCGGAYTAYCTGAAACTGAGYTTYCCGGAAGGYTTYAARTGGGAACGYGTBATGAAYTTYGAAGAYGGYGGYGTBGTBACGGTBACGCARGAYAGYAGYCTGCARGAYGGYGAATTYATYTAYAARGTBAARCTGCGYGGYACGAAYTTYCCGAGYGAYGGYCCGGTBATGCARAARAARACCATGGGYTGGGAAGCVAGYACGGAACGYATGTAYCCGGAAGAYGGYGCVCTGAARGGYGAAATYAARATGCGYCTGAARCTGAARGACGGYGGYCAYTAYGAYGCVGAAGTBAARACGACGTAYATGGCVAARAARCCGGTBCARCTGCCGGGYGCVTAYAARACGGACATAAARCTGGAYATYACGAGYCAYAAYGAAGAYTAYACGATYGTBGAACARTAYGAACGYGCVGAAGGYCGYCAYAGYACGGGYGCVTGA",
+                 "TGCCGACTCAGTTGCTGCTTCTACTGGGCG", "CCCCGCTTCGGCGGGGTTTTTTT"]
+    labels = ["UTR", "RBS", "", "CDS", "", "TER"]
+    colors = ["grey", "#B4FFA5".lower(), "grey", "#A5ECFF".lower(), "grey", "#FF3737".lower()]
+
+    bcd_length = len(fragments[0]) + len(fragments[1]) + len(fragments[2])
+
+    labels_and_ranges = []
+
+    total_length = -bcd_length
+
+    for i, fragment in enumerate(fragments):
+
+        print(total_length)
+        label = labels[i]
+        fragment_range = (total_length, total_length + len(fragment))
+        labels_and_ranges.append((label, fragment_range))
+        total_length += len(fragment)
+
+    for i, label_and_range in enumerate(labels_and_ranges):
+        label, fragment_range = label_and_range
+        color = colors[i]
+        x_min = max(smallest_x, fragment_range[0])
+        x_max = min(fragment_range[1], max_x)
+
+        if not x_max <= smallest_x and not x_min >= max_x:
+            text_x = int((x_min + x_max) / 2)
+
+            if x_max - x_min < 8:
+                label = ''
+                rotation = 'vertical'
+            elif x_max - x_min < 20:
+                rotation = 'vertical'
+            else:
+                rotation = 'horizontal'
+
+
+            ax.text(text_x, 0.85, label, fontdict={'size': 11, 'weight': 'bold'}, horizontalalignment='center',
+                    verticalalignment='center', rotation=rotation)
+
+            y_min = 0.7
+            y_max = 1.0
+            ax.axvspan(x_min, x_max, y_min, y_max, facecolor=color, fill=True, edgecolor='black', label=label)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+
+
+def plot_multiple_correlations(window_dirs, window_sizes, labels, out_svg, title, correlation_type="pearson"):
+    figure, axes = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 2]}, figsize=(27, 5))
+
+
+    plt.subplots_adjust(left=0.125, right=0.9, bottom=0.15, top=0.9, wspace=0.5, hspace=0.5)
+    colours = ["red", "blue", "orange", "purple", "pink", "black", "grey", "cyan"]
+    max_xs = []
+    min_xs = []
+    max_vals = []
+    min_vals = []
+    ax = axes[0]
+
+
+    for i, window_dir in enumerate(window_dirs):
+        window_size = window_sizes[i]
+        label = labels[i]
+
+        colour = colours[i % len(colours)]
+
+        window_to_correlations = read_correlations_from_dir(window_dir)
+
+        x_axis = sorted(list(window_to_correlations.keys()))
+        print(window_size)
+
+        x = [y + (int(0.5 * window_size)) for y in x_axis]
+        print(x[0], x[-1])
+
+        pearson = []
+        spearman = []
+
+        for window in x_axis:
+            pearson.append(window_to_correlations[window]['pearson'])
+            spearman.append(window_to_correlations[window]['spearman'])
+
+        if correlation_type == "pearson":
+            subplot_importances(colour, x, pearson, label, ax)
+            max_value = max(pearson)
+            min_value = min(pearson)
+        elif correlation_type == "spearman":
+            subplot_importances(colour, x, spearman, label, ax)
+            max_value = max(spearman)
+            min_value = min(spearman)
+
+        max_vals.append(max_value)
+        min_vals.append(min_value)
+
+        max_xs.append(x[-1])
+        min_xs.append(x[0])
+
+
+
+
+    max_value = max(max_vals)
+    min_value = min(min_vals)
+    max_x = max(max_xs)
+    min_x = min(min_xs)
+
+    indicator_bar = axes[1]
+    indicator_bar.get_xaxis().set_visible(False)
+    indicator_bar.get_yaxis().set_visible(False)
+    plot_indicator_bar(min_x, max_x, indicator_bar)
+
+    y_lim_top = max(0, max_value + 0.1 * max_value)
+    y_lim_bottom = min(0, min_value + 0.1 * min_value)
+
+    ax.set_ylim(y_lim_bottom, y_lim_top)
+    ax.set_xlim(min_x, max_x)
+
+    indicator_bar.set_ylim(0, 1)
+    indicator_bar.set_xlim(min_x, max_x)
+
+    ax.set_xlabel("Base position", fontdict={'size': 12})
+    ax.set_ylabel('Correlation', fontdict={'size': 12})
+
+    plt.gcf().subplots_adjust(bottom=0.15)
+
+    figure.suptitle(title, fontsize=14)
+    ax.legend(loc='upper right')
+    plt.savefig(out_svg)
+    plt.clf()
+    plt.close()
 
 
 def plot_correlation_vs_window(window_dir, out_svg, window_size):
@@ -351,11 +486,15 @@ def subplot_feature_importances_bpp(fi_dir, label, ax):
 
 def plot_multiple(feature_importances_files, encodings, labels, figure_title, out_svg):
 
-    fig, axes = plt.subplots(len(feature_importances_files), 1, figsize=(27, 3.5 * len(feature_importances_files)))
+    fig, axes = plt.subplots(len(feature_importances_files) + 1, 1, gridspec_kw={'height_ratios': [3.5] * len(feature_importances_files) + [2]},
+                             figsize=(27, 3.0 * len(feature_importances_files) + 2))
 
     plt.subplots_adjust(left=0.125, right=0.9, bottom=0.15, top=0.9, wspace=0.5, hspace=0.5)
 
     fig.suptitle(figure_title, fontsize=14)
+
+    min_x = 10000
+    max_x = -1000
 
     for i, fi_dir in enumerate(feature_importances_files):
         encoding = encodings[i]
@@ -364,10 +503,28 @@ def plot_multiple(feature_importances_files, encodings, labels, figure_title, ou
 
         if encoding == 'rna-bppm-totals':
             subplot_feature_importances_bpp(fi_dir, label, ax)
+
         elif encoding == 'one-hot-base' or encoding == 'one-hot-third-base':
             subplot_feature_importances_onehot_base(fi_dir, encoding, label, ax)
+
         elif encoding == 'rna-bppm-onehot-third':
             subplot_feature_importances_bpp_onehot_base_third(fi_dir, label, ax)
+
+        x_axis = ax.get_xaxis()
+        min_x_candidate, max_x_candidate = x_axis.get_data_interval()
+        if min_x_candidate < min_x:
+            min_x = min_x_candidate
+        if max_x_candidate > max_x:
+            max_x = max_x_candidate
+
+    indicator_bar = axes[-1]
+
+    indicator_bar.get_xaxis().set_visible(False)
+    indicator_bar.get_yaxis().set_visible(False)
+    plot_indicator_bar(min_x, max_x, indicator_bar)
+
+    indicator_bar.set_ylim(0, 1)
+    indicator_bar.set_xlim(min_x, max_x)
 
     plt.savefig(out_svg)
     plt.clf()

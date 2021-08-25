@@ -26,4 +26,5 @@ mew/rna/pairing_probabilities.py
 mew/visualisation/__init__.py
 mew/visualisation/plot.py
 mew/visualisation/plot_correlations.py
+mew/visualisation/plot_correlations_multiple.py
 mew/visualisation/plot_feature_importance_figures.py
