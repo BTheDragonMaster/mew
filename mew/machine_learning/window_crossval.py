@@ -70,6 +70,10 @@ def get_algorithm(args):
 def do_crossval(args):
     if not os.path.exists(args.output_folder):
         os.mkdir(args.output_folder)
+
+    output_folder = os.path.join(args.output_folder, args.name)
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
     encoding = get_featurisation(args)
     algorithm = get_algorithm(args)
     for sequence_file in os.listdir(args.sequence_data_dir):
@@ -84,15 +88,15 @@ def do_crossval(args):
                 dataset.initialise_groups()
                 dataset.populate_groups()
 
-                output_folder = os.path.join(args.output_folder, f'{args.name}_window_{window_number}')
-                if not os.path.exists(output_folder):
-                    os.mkdir(output_folder)
+                output_folder_windows = os.path.join(output_folder, f'{args.name}_window_{window_number}')
+                if not os.path.exists(output_folder_windows):
+                    os.mkdir(output_folder_windows)
 
-                dataset.do_crossval(output_folder, save_classifiers=False)
-                dataset.plot_actual_vs_predicted(output_folder)
-                dataset.write_actual_vs_predicted(output_folder)
-                dataset.plot_feature_importances(output_folder)
-                dataset.write_correlation_coefficients(output_folder)
+                dataset.do_crossval(output_folder_windows, save_classifiers=False)
+                dataset.plot_actual_vs_predicted(output_folder_windows)
+                dataset.write_actual_vs_predicted(output_folder_windows)
+                dataset.plot_feature_importances(output_folder_windows)
+                dataset.write_correlation_coefficients(output_folder_windows)
 
 if __name__ == "__main__":
     parser = make_parser()

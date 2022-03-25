@@ -100,9 +100,6 @@ class DataPoint:
             self.feature_vector = feature_vector_bpp + feature_vector_onehot_third
 
 
-
-
-
     def set_crossval_predicted_flow(self, flow):
         self.predicted_flow = flow
         self.difference = abs(self.predicted_flow - self.flow)

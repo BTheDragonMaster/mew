@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import os
 
+from scipy.stats import pearsonr, spearmanr
+from statistics import mean, stdev
 
 BCD = "ATGGGCCCAAGTTCACTTAAAAAGGAGATCAACAATGAAAGCAATTTTCGTACTGAAACATCTTAATCATGCAGGGGAGGGTTTCTA"
 TERMINATOR = "tgccgactcagttgctgcttctactgggcgccccgcttcggcggggttttttt".upper()
@@ -253,7 +255,7 @@ def read_correlations(correlations_file):
 def read_correlations_from_dir(window_dir):
     window_to_correlations = {}
     for directory in os.listdir(window_dir):
-        if directory[:7] == 'windows':
+        if 'window' in directory:
             full_path = os.path.join(window_dir, directory)
             coefficients_file = os.path.join(full_path, "correlation_coefficients.txt")
             pearson, spearman = read_correlations(coefficients_file)
@@ -263,6 +265,82 @@ def read_correlations_from_dir(window_dir):
             window_to_correlations[window]['spearman'] = float(spearman)
 
     return window_to_correlations
+
+
+def read_correlations_per_group_from_dir(window_dir, fold=10):
+    window_to_correlations = {}
+    for directory in os.listdir(window_dir):
+        if 'window' in directory:
+            full_path = os.path.join(window_dir, directory)
+            predictions_file = os.path.join(full_path, f"{directory}_actual_vs_predicted.txt")
+            pearson_mean, pearson_stdev, pearson_p_mean, pearson_p_stdev, spearman_mean, spearman_stdev, spearman_p_mean, spearman_p_stdev = read_correlations_per_group(predictions_file, fold=fold)
+
+            window = int(directory.split('_')[-1])
+            window_to_correlations[window] = {}
+            window_to_correlations[window]['pearson'] = pearson_mean
+            window_to_correlations[window]['spearman'] = spearman_mean
+            window_to_correlations[window]['pearson_stdev'] = pearson_stdev
+            window_to_correlations[window]['spearman_stdev'] = spearman_stdev
+            window_to_correlations[window]['pearson_p'] = pearson_p_mean
+            window_to_correlations[window]['spearman_p'] = spearman_p_mean
+            window_to_correlations[window]['pearson_p_stdev'] = pearson_p_stdev
+            window_to_correlations[window]['spearman_p_stdev'] = spearman_p_stdev
+
+    return window_to_correlations
+
+
+def read_correlations_per_group(predictions_file, fold=10, correlation='pearson'):
+    group_to_vectors = {}
+    group_to_correlation = {}
+    for i in range(fold):
+        group_to_vectors[i] = {'actual': [],
+                               'predicted': []}
+
+    with open(predictions_file, 'r') as predictions:
+        predictions.readline()
+        line_nr = 0
+        for line in predictions:
+            line = line.strip()
+            well, actual, predicted = line.split('\t')
+            group_to_vectors[line_nr % fold]['actual'].append(float(actual))
+            group_to_vectors[line_nr % fold]['predicted'].append(float(predicted))
+            line_nr += 1
+
+    pearson_correlations = []
+    spearman_correlations = []
+
+    pearson_ps = []
+    spearman_ps = []
+
+    for group in range(fold):
+        vectors = group_to_vectors[group]
+        actual = vectors['actual']
+        predicted = vectors['predicted']
+        pearson, pearson_p = pearsonr(actual, predicted)
+        spearman, spearman_p = spearmanr(actual, predicted)
+        pearson_correlations.append(pearson)
+        spearman_correlations.append(spearman)
+        pearson_ps.append(pearson_p)
+        spearman_ps.append(spearman_p)
+
+    pearson_mean = mean(pearson_correlations)
+    pearson_stdev = stdev(pearson_correlations)
+
+    spearman_mean = mean(spearman_correlations)
+    spearman_stdev = stdev(spearman_correlations)
+
+    pearson_p_mean = mean(pearson_ps)
+    pearson_p_stdev = stdev(pearson_ps)
+
+    spearman_p_mean = mean(spearman_ps)
+    spearman_p_stdev = stdev(spearman_ps)
+
+    return pearson_mean, pearson_stdev, pearson_p_mean, pearson_p_stdev, spearman_mean, spearman_stdev, spearman_p_mean, spearman_p_stdev
+
+
+
+
+
 
 
 

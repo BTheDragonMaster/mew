@@ -2,7 +2,8 @@
 
 import matplotlib
 matplotlib.use('TkAgg')
-from matplotlib import pyplot as plt, patches
+from matplotlib import pyplot as plt, patches, rcParams
+rcParams['font.family'] = 'palatino'
 
 from scipy.stats import pearsonr, spearmanr
 import os
@@ -12,13 +13,13 @@ from mew.parsers import read_feature_importances_from_dir, read_correlations_fro
 
 
 def plot_indicator_bar(smallest_x, max_x, ax):
-    fragments = ["ATGGGCCCAAGTTCACTTAAAAAGGAGATCAACAATGAAAGCAATTTTCGTACTGAAACATCTTAATCATGC", "AGGGGAGGGT", "TTCTA",
+    fragments = ["ATGGGCCCAAGTTCACTTAA", "AAAGGAGAT", "CAACAATGAAAGCAATTTTCGTACTGAAACATCTTAATCATGC", "AGGGGAGGGT", "TTCTA",
                  "ATGGCVAGYAGYGAAGAYGTBATYAARGAATTYATGCGYTTYAARGTBCGYATGGAAGGYAGYGTBAAYGGYCAYGAATTYGAAATYGAAGGYGAAGGYGAAGGYCGYCCGTAYGAAGGYACGCARACGGCVAARCTGAARGTBACGAARGGYGGYCCGCTGCCGTTCGCCTGGGAYATYCTGAGYCCGCARTTYCARTAYGGYAGYAARGCVTAYGTBAARCAYCCGGCVGAYATYCCGGAYTAYCTGAAACTGAGYTTYCCGGAAGGYTTYAARTGGGAACGYGTBATGAAYTTYGAAGAYGGYGGYGTBGTBACGGTBACGCARGAYAGYAGYCTGCARGAYGGYGAATTYATYTAYAARGTBAARCTGCGYGGYACGAAYTTYCCGAGYGAYGGYCCGGTBATGCARAARAARACCATGGGYTGGGAAGCVAGYACGGAACGYATGTAYCCGGAAGAYGGYGCVCTGAARGGYGAAATYAARATGCGYCTGAARCTGAARGACGGYGGYCAYTAYGAYGCVGAAGTBAARACGACGTAYATGGCVAARAARCCGGTBCARCTGCCGGGYGCVTAYAARACGGACATAAARCTGGAYATYACGAGYCAYAAYGAAGAYTAYACGATYGTBGAACARTAYGAACGYGCVGAAGGYCGYCAYAGYACGGGYGCVTGA",
                  "TGCCGACTCAGTTGCTGCTTCTACTGGGCG", "CCCCGCTTCGGCGGGGTTTTTTT"]
-    labels = ["UTR", "RBS", "", "CDS", "", "TER"]
-    colors = ["grey", "#B4FFA5".lower(), "grey", "#A5ECFF".lower(), "grey", "#FF3737".lower()]
+    labels = ["", "RBS1", "BCD", "RBS2", "", "CDS", "UTR", "TER"]
+    colors = ["#A0B2BB".lower(), "#F38424".lower(), "#A0B2BB".lower(), "#F38424".lower(), "#A0B2BB".lower(), "#0497DB".lower(), "#A0B2BB".lower(), "#FF1F5D".lower()]
 
-    bcd_length = len(fragments[0]) + len(fragments[1]) + len(fragments[2])
+    bcd_length = len(fragments[0]) + len(fragments[1]) + len(fragments[2]) + len(fragments[3]) + len(fragments[4])
 
     labels_and_ranges = []
 
@@ -49,13 +50,19 @@ def plot_indicator_bar(smallest_x, max_x, ax):
             else:
                 rotation = 'horizontal'
 
+            if rotation == 'horizontal':
 
-            ax.text(text_x, 0.85, label, fontdict={'size': 11, 'weight': 'bold'}, horizontalalignment='center',
-                    verticalalignment='center', rotation=rotation)
+                ax.text(text_x, 0.77, label, fontdict={'family': "palatino", 'size': 18, 'weight': 'bold'}, horizontalalignment='center',
+                        verticalalignment='center', rotation=rotation)
 
-            y_min = 0.7
-            y_max = 1.0
-            ax.axvspan(x_min, x_max, y_min, y_max, facecolor=color, fill=True, edgecolor='black', label=label)
+            y_min = 0.65
+            y_max = 0.95
+
+            if i == 0:
+                x_min += 1.0
+            elif i == 7:
+                x_max -= 1.0
+            ax.axvspan(x_min, x_max, y_min, y_max, facecolor=color, fill=True, edgecolor='black', label=label, linewidth=2.0)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -68,7 +75,7 @@ def plot_multiple_correlations(window_dirs, window_sizes, labels, out_svg, title
 
 
     plt.subplots_adjust(left=0.125, right=0.9, bottom=0.15, top=0.9, wspace=0.5, hspace=0.5)
-    colours = ["red", "blue", "orange", "purple", "pink", "black", "grey", "cyan"]
+    colours = ["#FC0003".lower(), "#0096DB".lower(), "#F17B14".lower(), "#823D8B".lower(), "pink", "black", "grey", "cyan"]
     max_xs = []
     min_xs = []
     max_vals = []
@@ -134,12 +141,12 @@ def plot_multiple_correlations(window_dirs, window_sizes, labels, out_svg, title
     indicator_bar.set_ylim(0, 1)
     indicator_bar.set_xlim(min_x, max_x)
 
-    ax.set_xlabel("Base position", fontdict={'size': 12})
-    ax.set_ylabel('Correlation', fontdict={'size': 12})
+    ax.set_xlabel("Base position", fontdict={'size': 20})
+    ax.set_ylabel('Correlation', fontdict={'size': 16})
 
     plt.gcf().subplots_adjust(bottom=0.15)
 
-    figure.suptitle(title, fontsize=14)
+    figure.suptitle(title, fontsize=22)
     ax.legend(loc='upper right')
     plt.savefig(out_svg)
     plt.clf()
@@ -195,23 +202,26 @@ def plot_actual_vs_predicted(training_set, plot_dir):
         x.append(data_point.flow)
         y.append(data_point.predicted_flow)
         if data_point.well.startswith('L'):
-            colours.append('blue')
+            colours.append('#019ADF'.lower())
         elif data_point.well.startswith('M'):
-            colours.append('orange')
+            colours.append('#FFC622'.lower())
         elif data_point.well.startswith('N'):
-            colours.append('orange')
+            colours.append('#FFC622'.lower())
         elif data_point.well.startswith('H'):
-            colours.append('red')
+            colours.append('#FF1F5D'.lower())
 
     pearson_correlation, p_val = pearsonr(x, y)
     spearman_correlation, sp_val = spearmanr(x, y)
 
 
-    plt.xlabel('Actual')
-    plt.ylabel('Predicted')
-    plt.title(f'Pearson: {pearson_correlation:.3f} (p={p_val:.3f}), Spearman: {spearman_correlation:.3f} (p={sp_val:.3f})')
+    plt.xlabel('Actual', fontsize=16)
+    plt.ylabel('Predicted', fontsize=16)
+    plt.title(f'Pearson: {pearson_correlation:.3f} (p={p_val:.3f})\nSpearman: {spearman_correlation:.3f} (p={sp_val:.3f})', fontsize=16)
 
     plt.scatter(x, y, marker='o', color=colours)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.ticklabel_format(axis="both", style="sci", scilimits=(0, 0))
     plt.savefig(os.path.join(plot_dir, label + '_actual_vs_predicted.svg'))
     plt.clf()
     plt.close()
@@ -312,10 +322,10 @@ def plot_feature_importances_onehot_base(fi_dir, encoding, out_dir):
 
     plt.gcf().subplots_adjust(bottom=0.15)
 
-    plot_importances('red', x, A, 'A')
-    plot_importances('blue', x, T, 'T')
-    plot_importances('green', x, G, 'G')
-    plot_importances('orange', x, C, 'C')
+    plot_importances('#FF1656'.lower(), x, A, 'A')
+    plot_importances('#0194DD'.lower(), x, T, 'T')
+    plot_importances('#06B658'.lower(), x, G, 'G')
+    plot_importances('#FFDA6B'.lower(), x, C, 'C')
 
     plt.legend(loc='upper right')
     plt.savefig(out_svg)
@@ -380,10 +390,10 @@ def plot_feature_importances_bpp_onehot_base_third(fi_dir, out_dir):
 
     plt.gcf().subplots_adjust(bottom=0.15)
 
-    plot_importances('red', x_onehot, A, 'A')
-    plot_importances('blue', x_onehot, T, 'T')
-    plot_importances('green', x_onehot, G, 'G')
-    plot_importances('orange', x_onehot, C, 'C')
+    plot_importances('#FF1656'.lower(), x_onehot, A, 'A')
+    plot_importances('#0194DD'.lower(), x_onehot, T, 'T')
+    plot_importances('#06B658'.lower(), x_onehot, G, 'G')
+    plot_importances('#FFDA6B'.lower(), x_onehot, C, 'C')
     plot_importances('grey', x_bpp, bpp, 'mRNA')
 
     plt.legend(loc='upper right')
@@ -395,7 +405,7 @@ def plot_feature_importances_bpp_onehot_base_third(fi_dir, out_dir):
 
 
 def subplot_feature_importances_onehot_base(fi_dir, encoding, label, ax):
-    ax.set_title(label, fontsize=12)
+    ax.set_title(label, fontsize=20)
 
     base_to_type_to_importance = read_feature_importances_from_dir(fi_dir, encoding)
 
@@ -415,21 +425,21 @@ def subplot_feature_importances_onehot_base(fi_dir, encoding, label, ax):
     elif encoding == 'one-hot-third-base':
         x_label = 'Codon position'
 
-    ax.set_xlabel(x_label)
-    ax.set_ylabel('Feature importance')
+    ax.set_xlabel(x_label, fontsize=18)
+    ax.set_ylabel('Feature importance', fontsize=16)
 
     plt.gcf().subplots_adjust(bottom=0.15)
 
-    subplot_importances('red', x, A, 'A', ax)
-    subplot_importances('blue', x, T, 'T', ax)
-    subplot_importances('green', x, G, 'G', ax)
-    subplot_importances('orange', x, C, 'C', ax)
+    subplot_importances('#FF1656'.lower(), x, A, 'A', ax)
+    subplot_importances('#0194DD'.lower(), x, T, 'T', ax)
+    subplot_importances('#06B658'.lower(), x, G, 'G', ax)
+    subplot_importances('#FFDA6B'.lower(), x, C, 'C', ax)
 
     ax.legend(loc='upper right')
 
 
 def subplot_feature_importances_bpp_onehot_base_third(fi_dir, label, ax):
-    ax.set_title(label, fontsize=12)
+    ax.set_title(label, fontsize=20)
 
     base_to_type_to_importance = read_feature_importances_from_dir(fi_dir, 'rna-bppm-onehot-third')
 
@@ -446,20 +456,20 @@ def subplot_feature_importances_bpp_onehot_base_third(fi_dir, label, ax):
     ax.set_ylim(y_lim_bottom, y_lim_top)
     ax.set_xlim(x_axis[0], x_axis[-1])
 
-    ax.set_xlabel('Base position')
-    ax.set_ylabel('Feature importance')
+    ax.set_xlabel('Base position', fontsize=18)
+    ax.set_ylabel('Feature importance', fontsize=16)
 
-    subplot_importances('red', x_onehot, A, 'A', ax)
-    subplot_importances('blue', x_onehot, T, 'T', ax)
-    subplot_importances('green', x_onehot, G, 'G', ax)
-    subplot_importances('orange', x_onehot, C, 'C', ax)
+    subplot_importances('#FF1656'.lower(), x_onehot, A, 'A', ax)
+    subplot_importances('#0194DD'.lower(), x_onehot, T, 'T', ax)
+    subplot_importances('#06B658'.lower(), x_onehot, G, 'G', ax)
+    subplot_importances('#FFDA6B'.lower(), x_onehot, C, 'C', ax)
     subplot_importances('grey', x_bpp, bpp, 'mRNA', ax)
 
     ax.legend(loc='upper right')
 
 
 def subplot_feature_importances_bpp(fi_dir, label, ax):
-    ax.set_title(label, fontsize=12)
+    ax.set_title(label, fontsize=20)
 
     base_to_importance = read_feature_importances_from_dir(fi_dir, 'rna-bppm-totals')
 
@@ -478,16 +488,16 @@ def subplot_feature_importances_bpp(fi_dir, label, ax):
     ax.set_ylim(y_lim_bottom, y_lim_top)
     ax.set_xlim(x_axis[0], x_axis[-1])
 
-    ax.set_xlabel('Base position')
-    ax.set_ylabel('Feature importance')
+    ax.set_xlabel('Base position', fontsize=18)
+    ax.set_ylabel('Feature importance', fontsize=16)
 
-    ax.plot(x_axis, y_axis, color='grey')
+    ax.plot(x_axis, y_axis, color='black')
 
 
 def plot_multiple(feature_importances_files, encodings, labels, figure_title, out_svg):
 
-    fig, axes = plt.subplots(len(feature_importances_files) + 1, 1, gridspec_kw={'height_ratios': [3.5] * len(feature_importances_files) + [2]},
-                             figsize=(27, 3.0 * len(feature_importances_files) + 2))
+    fig, axes = plt.subplots(len(feature_importances_files) + 1, 1, gridspec_kw={'height_ratios': [4.0] * len(feature_importances_files) + [2]},
+                             figsize=(27, 3.0 * len(feature_importances_files) + 4))
 
     plt.subplots_adjust(left=0.125, right=0.9, bottom=0.15, top=0.9, wspace=0.5, hspace=0.5)
 

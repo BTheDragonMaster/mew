@@ -97,6 +97,11 @@ class DataSet:
 
         self.feature_strings = get_feature_string_list(self.feature_mapping, self.encoding)
 
+        self.feature_importances = {}
+
+        self.true_flow = []
+        self.predicted_flow = []
+
     def __repr__(self):
         return ', '.join([x.__repr__() for x in self.data_points])
 
@@ -106,6 +111,40 @@ class DataSet:
     def add_data_point(self, well, sequence, flow, bpps=None):
         self.data_points.append(DataPoint(well, sequence, flow, self.encoding, bpps=bpps, five_utr=self.five_utr, terminator=self.terminator, length=self.length, utr_length=self.utr_length, start_position=self.start_position, coding_length=self.coding_length))
 
+    def set_vectors_actual_and_predicted_flow(self):
+
+        for data_point in self.data_points:
+            self.true_flow.append(data_point.flow)
+            self.predicted_flow.append(data_point.predicted_flow)
+
+    def set_correlation_coefficients(self):
+        self.pearson, self.pearson_p = pearsonr(self.true_flow, self.predicted_flow)
+        self.spearman, self.spearman_p = spearmanr(self.true_flow, self.predicted_flow)
+
+    def plot_actual_vs_predicted(self, out_dir):
+        plot_dir = os.path.join(out_dir, 'plots')
+        if not os.path.exists(plot_dir):
+            os.mkdir(plot_dir)
+
+        plot_actual_vs_predicted(self, plot_dir)
+
+    def write_actual_vs_predicted(self, out_dir):
+        out_file = os.path.join(out_dir, self.label + '_actual_vs_predicted.txt')
+        with open(out_file, 'w') as out:
+            out.write('well\tactual\tpredicted\n')
+            for data_point in self.data_points:
+                out.write(f'{data_point.well}\t{data_point.flow}\t{data_point.predicted_flow}\n')
+
+    def plot_feature_importances(self, out_dir):
+        fi_dir = os.path.join(out_dir, 'feature_importances')
+        plot_dir = os.path.join(out_dir, 'plots')
+        plot_feature_importances(fi_dir, self.encoding, plot_dir)
+
+    def write_correlation_coefficients(self, out_dir):
+        correlation_dir = os.path.join(out_dir, 'correlation_coefficients.txt')
+        with open(correlation_dir, 'w') as correlations:
+            correlations.write(f'pearson,{self.pearson}\n')
+            correlations.write(f'spearman,{self.spearman}\n')
 
 class TestSet(DataSet):
     def __init__(self, label, encoding, five_utr='', terminator='', representative_sequence=None, length=None,
@@ -143,9 +182,19 @@ class TrainingSet(DataSet):
 
         self.classifier = None
 
+    def train_model(self, algorithm, out_dir, alpha=1.0):
+        classifier_dir = os.path.join(out_dir, 'classifier')
+        if algorithm == 'random_forest':
+            self.train_random_forest(classifier_dir, save_classifier=True)
+            #self.save_representative_tree(os.path.join(out_dir, 'crossval_trees'))
+
+        elif algorithm == 'lasso':
+            self.train_lasso(classifier_dir, alpha, save_classifier=True)
+
     def train_random_forest(self, classifier_dir, save_classifier=True):
 
         self.classifier = RandomForestRegressor()
+        print(self.features)
         self.classifier.fit(self.features, self.responses)
 
         self.feature_importances = self.classifier.feature_importances_
@@ -308,7 +357,6 @@ class CrossvalSet(DataSet):
 
             elif self.algorithm == 'neural_net':
                 training_set.train_neural_net(classifier_dir, save_classifier=save_classifiers)
-
 
             training_set.write_feature_importances(os.path.join(out_dir, 'feature_importances'))
 
